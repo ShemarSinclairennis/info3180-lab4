@@ -8,7 +8,8 @@ import os
 from app import app
 from flask import render_template, request, redirect, url_for, flash, session, abort
 from werkzeug.utils import secure_filename
-from .forms import UploadForm
+from app.forms import UploadForm
+
 
 ###
 # Routing for your application.
@@ -28,46 +29,24 @@ def about():
 
 @app.route('/upload', methods=['POST', 'GET'])
 def upload():
+    
     if not session.get('logged_in'):
         abort(401)
 
     # Instantiate your form class
     form = UploadForm()
+    #if form.validate_on_submit(): # Validate file upload on submit
+    if request.method == 'POST' and form.validate_on_submit():
 
-    # Validate file upload on submit
-    if request.method == 'POST':
-        if form.validate_on_submit() == True:
-        # Get file data and save to your uploads folder
-            f = form.file_upload.data
-            filename = secure_filename(f.filename)
-            f.save(os.path.join(
-                app.config['UPLOAD_FOLDER'], filename
-            ))
-            flash('File Saved', 'success')
-            return redirect(url_for('home'))
-    elif request.method == 'GET':
-        return render_template('upload.html', form=form)
-    return render_template('upload.html')
+        #Get file data and save to your uploads folder
+        Image = form.file_upload.data
+        filename = secure_filename(Image.filename)
+        Image.save(os.path.join(app.config['UPLOAD_FOLDER'],filename))
+        flash('File Saved', 'success')
+        return redirect(url_for('home'))
+    flash_errors(form)
 
-def get_uploaded_images():
-    photo = []
-    valid_images = [".jpg",".png",".jpeg"]
-    for subdir, dirs, files in os.walk(app.config['UPLOAD_FOLDER']):
-        for file in files:
-            f = os.path.splitext(os.path.basename(subdir))
-            if f[1] in valid_images:
-                print(f)
-                photo.append(os.path.join(f, file))
-    return photo
-
-
-@app.route('/files')
-def files():
-    if not session.get('logged_in'):
-        abort(401)
-    image = get_uploaded_images()
-    return render_template('files.html', images=image)
-
+    return render_template('upload.html',form=form)
 
 
 @app.route('/login', methods=['POST', 'GET'])
@@ -89,7 +68,23 @@ def logout():
     session.pop('logged_in', None)
     flash('You were logged out', 'success')
     return redirect(url_for('home'))
+    
+    
+@app.route('/files')
+def files():
+   return render_template('files.html',images = get_uploaded_images())
 
+def get_uploaded_images():
+
+    rootdir = os.getcwd()
+    list = []
+    for subdir, dirs, files in os.walk(rootdir + 'app/static/uploads'): 
+        for file in files:
+            list.append(os.path.join(subdir, file).split("\\")[-1])
+    return list[1:]
+print(get_uploaded_images())            
+                
+                
 
 ###
 # The functions below should be applicable to all Flask apps.
@@ -111,6 +106,8 @@ def send_text_file(file_name):
     return app.send_static_file(file_dot_text)
 
 
+
+
 @app.after_request
 def add_header(response):
     """
@@ -126,6 +123,8 @@ def add_header(response):
 def page_not_found(error):
     """Custom 404 page."""
     return render_template('404.html'), 404
+    
+
 
 
 if __name__ == '__main__':
